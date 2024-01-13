@@ -35,6 +35,10 @@ class User(db.Model):
     def validate_password(self, password):  # 用于验证密码
         return check_password_hash(self.password_hash, password)
 
+    def reset_password(self, new_password):
+        self.set_password(new_password)  # 设置新密码
+        db.session.commit()  # 提交到数据库
+
 
 @app.cli.command()  # 注册为命令，可以传入 name 参数来自定义命令
 @click.option('--drop', is_flag=True, help='Create after drop.')  # 设置选项
@@ -53,9 +57,8 @@ def welcome():
 
 @app.route('/user/register', methods=['POST'])
 def register():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
+    username = request.form['username']
+    password = request.form['password']
     user = User.query.filter_by(username=username).first()
     if user:
         return jsonify(code=999, msg='该用户名已存在')
@@ -73,9 +76,8 @@ def register():
 
 @app.route('/user/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    username = data.get('username')
-    password = data.get('password')
+    username = request.form['username']
+    password = request.form['password']
     user = User.query.filter_by(username=username).first()
     if user and user.validate_password(password):
         access_token = create_access_token(identity=username)
@@ -84,9 +86,17 @@ def login():
         return jsonify(code=999, msg='用户名或密码错误')
 
 
-# @app.route("/user/logout")
-# def logout():
-#     return "logout"
+@app.route('/user/reset', methods=['POST'])
+@jwt_required()
+def reset_password():
+    current_user = get_jwt_identity()
+    user = User.query.filter_by(username=current_user).first()
+    if user:
+        new_password = request.form['password']
+        user.reset_password(new_password)
+        return jsonify(code=200, msg='密码重置成功')
+    else:
+        return jsonify(code=404, msg='用户不存在')
 
 
 @app.route("/session", methods=["GET"])
