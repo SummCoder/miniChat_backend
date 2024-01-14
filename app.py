@@ -26,10 +26,10 @@ jwt = JWTManager(app)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(20))     # 用户名
-    password_hash = db.Column(db.String(128))   # 密码散列值
+    username = db.Column(db.String(20))  # 用户名
+    password_hash = db.Column(db.String(128))  # 密码散列值
 
-    def set_password(self, password):   # 用于设置密码
+    def set_password(self, password):  # 用于设置密码
         self.password_hash = generate_password_hash(password)
 
     def validate_password(self, password):  # 用于验证密码
@@ -38,6 +38,15 @@ class User(db.Model):
     def reset_password(self, new_password):
         self.set_password(new_password)  # 设置新密码
         db.session.commit()  # 提交到数据库
+
+
+class Chat(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    creator = db.Column(db.Integer)
+    avatar = db.Column(db.Integer)
+    name = db.Column(db.String(20))
+    desc = db.Column(db.String(300))
+    whetherPublic = db.Column(db.String)
 
 
 @app.cli.command()  # 注册为命令，可以传入 name 参数来自定义命令
@@ -104,6 +113,21 @@ def reset_password():
 def check_session():
     current_user = get_jwt_identity()
     return jsonify(current_user)
+
+
+@app.route("/create", methods=["POST"])
+@jwt_required()
+def create_robot():
+    current_user = get_jwt_identity()
+    user = User.query.filter_by(username=current_user).first()
+    avatar = request.form['avatar']
+    name = request.form['name']
+    desc = request.form['desc']
+    whetherpublic = request.form['whetherPublic']
+    robot_new = Chat(creator=user.id, avatar=avatar, name=name, desc=desc, whetherPublic=whetherpublic)
+    db.session.add(robot_new)
+    db.session.commit()
+    return jsonify(code=201, msg='机器人创建成功')
 
 
 if __name__ == '__main__':
