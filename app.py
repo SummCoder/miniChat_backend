@@ -158,6 +158,7 @@ def get_robots():
             'whetherPublic': robot.whetherPublic
         }
         robots.append(robot_data)
+
     return jsonify(code=200, data=robots, msg='启用的机器人获取成功')
 
 
