@@ -49,6 +49,13 @@ class Chat(db.Model):
     whetherPublic = db.Column(db.String)
 
 
+class Link(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user = db.Column(db.Integer)
+    chat = db.Column(db.Integer)
+    role = db.Column(db.Integer)
+
+
 @app.cli.command()  # 注册为命令，可以传入 name 参数来自定义命令
 @click.option('--drop', is_flag=True, help='Create after drop.')  # 设置选项
 def initdb(drop):
@@ -127,7 +134,31 @@ def create_robot():
     robot_new = Chat(creator=user.id, avatar=avatar, name=name, desc=desc, whetherPublic=whetherpublic)
     db.session.add(robot_new)
     db.session.commit()
+    robot_id = robot_new.id
+    link_new = Link(user=user.id, chat=robot_id, role=0)
+    db.session.add(link_new)
+    db.session.commit()
     return jsonify(code=201, msg='机器人创建成功')
+
+
+@app.route("/user/getrobots", methods=["GET"])
+@jwt_required()
+def get_robots():
+    current_user = get_jwt_identity()
+    user = User.query.filter_by(username=current_user).first()
+    links = Link.query.filter_by(user=user.id).all()
+    robots = []
+    for link in links:
+        robot = Chat.query.filter_by(id=link.chat).first()
+        robot_data = {
+            'id': robot.id,
+            'name': robot.name,
+            'desc': robot.desc,
+            'avatar': robot.avatar,
+            'whetherPublic': robot.whetherPublic
+        }
+        robots.append(robot_data)
+    return jsonify(code=200, data=robots, msg='启用的机器人获取成功')
 
 
 if __name__ == '__main__':
