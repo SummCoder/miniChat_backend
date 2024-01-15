@@ -87,7 +87,7 @@ def register():
         db.session.add(user_new)
         db.session.commit()
         access_token = create_access_token(identity=username)
-        return jsonify(code=201, data='Bearer ' + access_token, msg='新用户创建成功！')
+        return jsonify(code=201, data='Bearer ' + access_token, msg='新用户创建成功！', userid=user_new.id)
 
 
 @app.route('/user/login', methods=['POST'])
@@ -97,7 +97,7 @@ def login():
     user = User.query.filter_by(username=username).first()
     if user and user.validate_password(password):
         access_token = create_access_token(identity=username)
-        return jsonify(code=200, data='Bearer ' + access_token, msg='登录成功！')
+        return jsonify(code=200, data='Bearer ' + access_token, msg='登录成功！', userid=user.id)
     else:
         return jsonify(code=999, msg='用户名或密码错误')
 
