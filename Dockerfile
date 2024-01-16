@@ -10,6 +10,9 @@ COPY . /app
 # 安装应用依赖
 RUN pip install -r requirements.txt
 
+# 初始化数据库
+RUN flask initdb --drop
+
 # 暴露应用端口
 EXPOSE 5000
 
