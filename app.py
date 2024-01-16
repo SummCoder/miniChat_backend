@@ -66,11 +66,17 @@ def initdb(drop):
     click.echo('Initialized database.')  # 输出提示信息
 
 
+def replace_you_with_me(input_string):
+    output_string = input_string.replace("你", "我")
+    return output_string
+
+
 @app.route('/')
 def welcome():
     return 'Welcome to My miniChat Project!'
 
 
+# 注册
 @app.route('/user/register', methods=['POST'])
 def register():
     username = request.form['username']
@@ -90,6 +96,7 @@ def register():
         return jsonify(code=201, data='Bearer ' + access_token, msg='新用户创建成功！', userid=user_new.id)
 
 
+# 登录
 @app.route('/user/login', methods=['POST'])
 def login():
     username = request.form['username']
@@ -102,6 +109,7 @@ def login():
         return jsonify(code=999, msg='用户名或密码错误')
 
 
+# 重置密码
 @app.route('/user/reset', methods=['POST'])
 @jwt_required()
 def reset_password():
@@ -122,6 +130,7 @@ def check_session():
     return jsonify(current_user)
 
 
+# 创建机器人
 @app.route("/create", methods=["POST"])
 @jwt_required()
 def create_robot():
@@ -130,6 +139,7 @@ def create_robot():
     avatar = request.form['avatar']
     name = request.form['name']
     desc = request.form['desc']
+    desc = replace_you_with_me(desc)
     whetherpublic = request.form['whetherPublic']
     robot_new = Chat(creator=user.id, avatar=avatar, name=name, desc=desc, whetherPublic=whetherpublic)
     db.session.add(robot_new)
@@ -141,6 +151,7 @@ def create_robot():
     return jsonify(code=201, msg='机器人创建成功')
 
 
+# 获取拥有的机器人
 @app.route("/user/getrobots", methods=["GET"])
 @jwt_required()
 def get_robots():
@@ -160,6 +171,101 @@ def get_robots():
         robots.append(robot_data)
 
     return jsonify(code=200, data=robots, msg='启用的机器人获取成功')
+
+
+# 获取公共机器人
+@app.route("/getpublic", methods=["GET"])
+@jwt_required()
+def get_public():
+    current_user = get_jwt_identity()
+    user = User.query.filter_by(username=current_user).first()
+    links = Link.query.filter_by(user=user.id, role=1).all()
+    robot_ids = []
+    for link in links:
+        robot_ids.append(link.chat)
+    robots = []
+    robotlist = Chat.query.filter_by(whetherPublic=1).all()
+    for robot in robotlist:
+        if user.id != robot.creator:
+            if robot.id in robot_ids:
+                robot_data = {
+                    'id': robot.id,
+                    'name': robot.name,
+                    'desc': robot.desc,
+                    'avatar': robot.avatar,
+                    'whetherPublic': 1
+                }
+            else:
+                robot_data = {
+                    'id': robot.id,
+                    'name': robot.name,
+                    'desc': robot.desc,
+                    'avatar': robot.avatar,
+                    'whetherPublic': 0
+                }
+            robots.append(robot_data)
+
+    return jsonify(code=200, data=robots, msg='获取公共的机器人获取成功')
+
+
+# 添加机器人
+@app.route("/add/<int:robot>", methods=["POST"])
+@jwt_required()
+def add_public(robot):
+    current_user = get_jwt_identity()
+    user = User.query.filter_by(username=current_user).first()
+    link_new = Link(user=user.id, chat=robot, role=1)
+    db.session.add(link_new)
+    db.session.commit()
+    return jsonify(code=201, msg='添加机器人成功！')
+
+
+@app.route("/delete/<int:robot>", methods=["DELETE"])
+@jwt_required()
+def delete_link(robot):
+    current_user = get_jwt_identity()
+    user = User.query.filter_by(username=current_user).first()
+    link_to_delete = Link.query.filter_by(chat=robot, user=user.id).first()
+    if link_to_delete:
+        db.session.delete(link_to_delete)
+        db.session.commit()
+        return jsonify(code=200, msg='机器人删除成功')
+    else:
+        return jsonify(code=404, msg='机器人未找到或无权限删除')
+
+
+@app.route("/search/<search_term>", methods=["GET"])
+@jwt_required()
+def search(search_term):
+    current_user = get_jwt_identity()
+    user = User.query.filter_by(username=current_user).first()
+    links = Link.query.filter_by(user=user.id, role=1).all()
+    robot_ids = []
+    for link in links:
+        robot_ids.append(link.chat)
+    robots = []
+    robotlist = Chat.query.filter(Chat.whetherPublic == 1, Chat.name.like(f'%{search_term}%')).all()
+    for robot in robotlist:
+        if user.id != robot.creator:
+            if robot.id in robot_ids:
+                robot_data = {
+                    'id': robot.id,
+                    'name': robot.name,
+                    'desc': robot.desc,
+                    'avatar': robot.avatar,
+                    'whetherPublic': 1
+                }
+            else:
+                robot_data = {
+                    'id': robot.id,
+                    'name': robot.name,
+                    'desc': robot.desc,
+                    'avatar': robot.avatar,
+                    'whetherPublic': 0
+                }
+            robots.append(robot_data)
+
+    return jsonify(code=200, data=robots, msg='获取公共的机器人获取成功')
 
 
 if __name__ == '__main__':
